@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Vishak Tech — Production Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f4f1;--bg2:#ffffff;--bg3:#f7faf8;
+  --tx:#111a14;--tx2:#4a5c50;--tx3:#8fa695;
+  --bd:rgba(27,122,62,0.12);--bd2:rgba(27,122,62,0.22);
+  --r:8px;--rl:12px;--rx:16px;
+  --f:'Inter',system-ui,sans-serif;--fm:'JetBrains Mono',monospace;
+  --shadow:0 1px 4px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 16px rgba(0,0,0,.09),0 2px 6px rgba(0,0,0,.05);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.12);
+  --green:#1b7a3e;--green-lt:#e8f5ee;--green-dk:#155f30;
+  --blue:#1558a0;--blue-lt:#e8f0fb;
+  --amber:#8a5200;--amber-lt:#fff3dc;
+  --red:#c0392b;--red-lt:#fdecea;
+  --purple:#4a38a8;--purple-lt:#eeeafc;
+  --teal:#0e6670;--teal-lt:#e0f5f5;
+  --accent:#1b7a3e;--accent-hover:#155f30;--accent-lt:#e8f5ee;
+}
+html{font-size:clamp(12px,1.1vw,15px)}
+body{font-family:var(--f);background:var(--bg);background-image:radial-gradient(ellipse 80% 50% at 50% -5%,rgba(27,122,62,0.07) 0%,transparent 60%);color:var(--tx);min-height:100vh;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#b0c8b8;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#7fa88a}
+
+/* ── Loading ── */
+#loading-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);z-index:200;transition:opacity .35s}
+#loading-screen.hidden{opacity:0;pointer-events:none}
+.spinner{width:36px;height:36px;border:2.5px solid var(--bd2);border-top-color:var(--accent);border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 1.1rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-title{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:4px}
+.loader-sub{font-size:12px;color:var(--tx3)}
+
+/* ── Dashboard ── */
+#dashboard{display:none;max-width:100%;padding:clamp(.75rem,2vw,2rem) clamp(.75rem,2.5vw,2rem) 4rem}
+#dashboard.visible{display:block}
+
+/* ── Topbar ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;
+  background:var(--accent);border-radius:var(--rx);padding:1rem 1.5rem;margin-bottom:1.25rem;
+  box-shadow:var(--shadow-md);position:relative;overflow:hidden
+}
+.topbar::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.08) 0%,transparent 60%);pointer-events:none}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-icon{width:38px;height:38px;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,.3);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;backdrop-filter:blur(4px)}
+.brand-icon svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.brand-name{font-size:clamp(13px,1.3vw,16px);font-weight:800;color:#fff;letter-spacing:-.4px}
+.brand-sub{font-size:11px;color:rgba(255,255,255,.7);margin-top:1px;font-weight:500}
+.topbar-right{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.hbtn{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);padding:.42rem .9rem;border-radius:8px;font-size:12.5px;font-weight:600;color:#fff;cursor:pointer;font-family:var(--f);transition:all .18s;white-space:nowrap;text-decoration:none;backdrop-filter:blur(4px)}
+.hbtn:hover{background:rgba(255,255,255,.28);border-color:rgba(255,255,255,.45)}
+.hbtn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hbtn-primary{background:#fff !important;color:var(--accent) !important;border-color:transparent !important;box-shadow:0 2px 8px rgba(0,0,0,.15) !important}
+.hbtn-primary:hover{background:rgba(255,255,255,.9) !important;transform:translateY(-1px) !important;box-shadow:0 4px 16px rgba(0,0,0,.2) !important}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;box-shadow:0 0 6px rgba(74,222,128,.6);animation:pulse-dot 2.2s ease-in-out infinite;flex-shrink:0}
+@keyframes pulse-dot{0%,100%{opacity:1;box-shadow:0 0 6px rgba(74,222,128,.6)}50%{opacity:.5;box-shadow:0 0 2px rgba(74,222,128,.3)}}
+.refresh-info{font-size:11.5px;color:rgba(255,255,255,.7);font-family:var(--fm);white-space:nowrap}
+
+/* ── Status bar ── */
+#status-bar{font-size:12.5px;font-family:var(--fm);display:none;align-items:center;gap:8px;padding:.6rem 1rem;border-radius:var(--r);margin-bottom:1.1rem}
+#status-bar.show{display:flex}
+#status-bar.error{background:rgba(192,57,43,.08);border:1px solid rgba(192,57,43,.22);color:var(--red)}
+#status-bar.loading{background:var(--amber-lt);border:1px solid rgba(138,82,0,.22);color:var(--amber)}
+#status-bar.success{background:var(--green-lt);border:1px solid rgba(27,122,62,.22);color:var(--green)}
+
+/* ── KPI grid ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(clamp(120px,14vw,180px),1fr));gap:12px;margin-bottom:1.25rem}
+.kpi{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rl);padding:1.15rem 1.2rem 1rem;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;cursor:default;box-shadow:var(--shadow)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--rl) var(--rl) 0 0}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.kpi.k1::before{background:linear-gradient(90deg,#1b7a3e,#34d399)}
+.kpi.k2::before{background:linear-gradient(90deg,#1558a0,#60a5fa)}
+.kpi.k3::before{background:linear-gradient(90deg,#4a38a8,#c4b5fd)}
+.kpi.k4::before{background:linear-gradient(90deg,#c0392b,#fca5a5)}
+.kpi.k5::before{background:linear-gradient(90deg,#8a5200,#fcd34d)}
+.kpi.k6::before{background:linear-gradient(90deg,#0e6670,#67e8f9)}
+.kpi-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--tx3);margin-bottom:6px}
+.kpi-val{font-size:clamp(26px,3.5vw,42px);font-weight:800;line-height:1;font-family:var(--fm);letter-spacing:-1.5px}
+.kpi.k1 .kpi-val{color:var(--green)}
+.kpi.k2 .kpi-val{color:var(--blue)}
+.kpi.k3 .kpi-val{color:var(--purple)}
+.kpi.k4 .kpi-val{color:var(--red)}
+.kpi.k5 .kpi-val{color:var(--amber)}
+.kpi.k6 .kpi-val{color:var(--teal)}
+.kpi-sub{font-size:11px;color:var(--tx3);margin-top:6px;font-weight:400}
+
+/* ── Card ── */
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rl);padding:1.25rem;margin-bottom:1.1rem;box-shadow:var(--shadow)}
+.card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--tx3);display:flex;align-items:center;gap:7px;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--bd)}
+.card-title svg{width:14px;height:14px;stroke:var(--accent);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── Charts row ── */
+.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;margin-bottom:1.1rem}
+
+/* ── Tabs ── */
+.tabs-wrap{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem}
+.tabs{display:flex;gap:4px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:3px}
+.tab{padding:5px 16px;border-radius:6px;border:none;font-size:12.5px;font-weight:500;cursor:pointer;background:transparent;color:var(--tx3);font-family:var(--f);transition:all .15s;display:flex;align-items:center;gap:5px}
+.tab.active{background:var(--bg2);color:var(--accent);box-shadow:var(--shadow);font-weight:700}
+.tab:hover:not(.active){color:var(--tx);background:rgba(27,122,62,.06)}
+
+/* ── Filter bar ── */
+.filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1rem}
+.srch-wrap{position:relative}
+.srch-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;stroke:var(--tx3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.srch-wrap input{padding:6px 10px 6px 30px;border-radius:var(--r);border:1px solid var(--bd2);background:var(--bg3);color:var(--tx);font-size:12.5px;font-family:var(--f);width:210px;transition:border-color .15s,box-shadow .15s;outline:none}
+.srch-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(27,122,62,.1)}
+.fsel{font-size:12px;padding:6px 10px;border-radius:var(--r);border:1px solid var(--bd2);background:var(--bg3);color:var(--tx2);cursor:pointer;font-family:var(--f);transition:border-color .15s;outline:none}
+.fsel:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(27,122,62,.08)}
+.add-btn{display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:var(--r);border:none;background:var(--accent);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:var(--f);transition:all .15s;box-shadow:0 1px 4px rgba(27,122,62,.35)}
+.add-btn:hover{background:var(--accent-hover);box-shadow:0 2px 8px rgba(27,122,62,.4)}
+.add-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round}
+
+/* ── Journey cards ── */
+.jcard{border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:10px;overflow:hidden;background:var(--bg3);transition:box-shadow .15s}
+.jcard:hover{box-shadow:var(--shadow-md)}
+.jcard-hd{display:flex;align-items:center;gap:10px;padding:10px 14px;flex-wrap:wrap;border-bottom:1px solid var(--bd);background:var(--bg2)}
+.jwo{font-size:12.5px;font-weight:700;color:var(--accent);font-family:var(--fm);letter-spacing:.02em}
+.jitem{font-size:12.5px;color:var(--tx);font-weight:500}
+.jdate{font-size:11px;color:var(--tx3);display:flex;align-items:center;gap:4px}
+.jdate svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.jprog{margin-left:auto;font-size:10.5px;color:var(--tx3);letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:6px;font-weight:700}
+.jprog-val{font-size:15px;font-weight:800;color:var(--green);letter-spacing:-0.01em;font-family:var(--fm)}
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:10.5px;font-weight:700;white-space:nowrap;letter-spacing:.02em}
+.badge-completed{background:var(--green-lt);color:var(--green)}
+.badge-progress{background:var(--blue-lt);color:var(--blue)}
+.badge-pending{background:var(--amber-lt);color:var(--amber)}
+.badge-hold{background:var(--red-lt);color:var(--red)}
+.badge-prepared{background:var(--purple-lt);color:var(--purple)}
+.badge-created{background:var(--teal-lt);color:var(--teal)}
+.badge-empty{background:var(--bg3);color:var(--tx3);border:1px solid var(--bd2)}
+
+/* ── Pipeline track ── */
+.jpipeline{padding:14px 16px 18px;overflow-x:auto;background:var(--bg3)}
+.ptrack{display:flex;align-items:flex-start;position:relative;min-width:420px}
+.pstep{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
+.pstep:not(:last-child)::after{content:'';position:absolute;top:14px;left:calc(50% + 15px);right:calc(-50% + 15px);height:2px;background:var(--bd2);z-index:0}
+.pstep.s-done:not(:last-child)::after{background:var(--green)}
+.pstep.s-active:not(:last-child)::after{background:linear-gradient(90deg,#f59e0b,var(--bd2))}
+.pstep.s-hold:not(:last-child)::after{background:var(--red)}
+.pnode{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;z-index:1;position:relative;border:2px solid var(--bd2);background:var(--bg2);color:var(--tx3);box-shadow:var(--shadow)}
+.pnode.s-done{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 0 8px rgba(27,122,62,.3)}
+.pnode.s-active{background:#f59e0b;border-color:#f59e0b;color:#fff;box-shadow:0 0 8px rgba(245,158,11,.4);animation:glow-active 2s ease-in-out infinite}
+@keyframes glow-active{0%,100%{box-shadow:0 0 8px rgba(245,158,11,.4)}50%{box-shadow:0 0 16px rgba(245,158,11,.7)}}
+.pnode.s-hold{background:var(--red-lt);border-color:var(--red);color:var(--red)}
+.pnode.s-pending{background:var(--bg2);border-color:var(--bd2);color:var(--tx3)}
+.plbl{font-size:9.5px;color:var(--tx3);text-align:center;margin-top:5px;line-height:1.3;max-width:66px;font-weight:500}
+.plbl.s-done{color:var(--green);font-weight:700}
+.plbl.s-active{color:#d97706;font-weight:700}
+.plbl.s-hold{color:var(--red);font-weight:700}
+
+/* ── Table ── */
+.twrap{overflow-x:auto;max-height:clamp(300px,40vh,520px);overflow-y:auto}
+.twrap thead th{position:sticky;top:0;z-index:2;background:var(--bg3);box-shadow:0 1px 0 var(--bd2)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;padding:9px 12px;color:var(--tx3);font-weight:700;white-space:nowrap;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;cursor:pointer;user-select:none;transition:color .12s}
+th:hover{color:var(--accent)}
+td{padding:9px 12px;border-bottom:1px solid var(--bd);color:var(--tx);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--bg3)}
+.wo-id{font-weight:700;font-family:var(--fm);font-size:11.5px;color:var(--accent)}
+.pbar-wrap{display:flex;align-items:center;gap:8px;min-width:90px}
+.pbar-track{flex:1;height:5px;background:var(--bg);border-radius:3px;overflow:hidden;border:1px solid var(--bd)}
+.pbar-fill{height:100%;border-radius:3px;transition:width .4s}
+.pbar-lbl{font-size:11px;color:var(--tx3);min-width:30px;text-align:right;font-weight:700;font-family:var(--fm)}
+.sort-icon{opacity:.45;font-size:10px;margin-left:2px}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(10,20,30,.45);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1.5rem;opacity:0;pointer-events:none;transition:opacity .22s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-box{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--rx);width:min(560px,100%);max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);transform:translateY(16px) scale(.97);transition:transform .24s cubic-bezier(.22,.68,0,1.15)}
+.modal-overlay.open .modal-box{transform:translateY(0) scale(1)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:1.2rem 1.5rem 1rem;border-bottom:1px solid var(--bd);position:sticky;top:0;background:var(--bg2);z-index:1;border-radius:var(--rx) var(--rx) 0 0}
+.modal-title{font-size:15px;font-weight:800;color:var(--tx);display:flex;align-items:center;gap:8px}
+.modal-title svg{width:15px;height:15px;stroke:var(--accent);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.modal-close{background:var(--bg3);border:1px solid var(--bd2);border-radius:7px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:var(--tx3);transition:all .15s}
+.modal-close:hover{background:var(--red-lt);color:var(--red);border-color:rgba(192,57,43,.3)}
+.modal-body{padding:1.3rem 1.5rem}
+.modal-footer{padding:.9rem 1.5rem 1.3rem;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--bd)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px}
+.form-grid .full{grid-column:1/-1}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:10.5px;font-weight:700;color:var(--tx2);text-transform:uppercase;letter-spacing:.6px}
+.fi,.fs{width:100%;padding:7px 10px;border-radius:var(--r);border:1px solid var(--bd2);background:var(--bg3);color:var(--tx);font-size:13px;font-family:var(--f);outline:none;transition:border-color .15s,box-shadow .15s}
+.fi:focus,.fs:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(27,122,62,.1)}
+.cancel-btn{padding:8px 18px;border-radius:var(--r);border:1px solid var(--bd2);background:transparent;color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--f);transition:background .15s}
+.cancel-btn:hover{background:var(--bg3)}
+.submit-btn{padding:8px 20px;border-radius:var(--r);border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--f);transition:all .15s;box-shadow:0 1px 4px rgba(27,122,62,.35);display:flex;align-items:center;gap:6px}
+.submit-btn:hover{background:var(--accent-hover);box-shadow:0 2px 8px rgba(27,122,62,.4)}
+.submit-btn:disabled{opacity:.6;cursor:not-allowed}
+.submit-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── Sheet source chip ── */
+.sheet-chip{display:inline-flex;align-items:center;gap:7px;background:var(--green-lt);border:1px solid rgba(27,122,62,.25);border-radius:8px;padding:.35rem .85rem;font-size:11.5px;color:var(--green);font-weight:600}
+.sheet-chip svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+/* ── Empty state ── */
+.empty-state{text-align:center;color:var(--tx3);font-size:13px;padding:2.5rem 0}
+
+/* ── Footer ── */
+.footer{text-align:center;font-size:11px;color:var(--tx3);margin-top:1.5rem;padding-top:.75rem;border-top:1px solid var(--bd);font-family:var(--fm)}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .topbar{flex-direction:column;align-items:flex-start}
+  .topbar-right{width:100%;flex-wrap:wrap}
+  .form-grid{grid-template-columns:1fr}
+  .srch-wrap input{width:160px}
+}
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .hbtn span{display:none}
+  .tabs-wrap{flex-direction:column;align-items:stretch}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div style="text-align:center">
+    <div class="spinner"></div>
+    <div class="loader-title">Loading Production Data…</div>
+    <div class="loader-sub" id="load-sub">Connecting to Google Sheets</div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div style="max-width:1280px;margin:0 auto">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        </div>
+        <div>
+          <div class="brand-name">Vishak Tech</div>
+          <div class="brand-sub">Production Dashboard</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="live-dot"></div>
+        <div class="refresh-info" id="refresh-info">Live</div>
+        <button class="hbtn" onclick="loadAll()">
+          <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.54"/></svg>
+          <span>Refresh</span>
+        </button>
+        <button class="hbtn hbtn-primary" onclick="openAddModal()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Add Work Order</span>
+        </button>
+        <a class="hbtn" id="open-sheet-btn" href="https://docs.google.com/spreadsheets/d/1SssQiaJb_Ij4CPlunlAFjd_SGncaDAKN88PVmRFo-Qw/edit" target="_blank">
+          <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          <span>Open Sheet</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div id="status-bar"></div>
+
+    <!-- KPI Grid -->
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi k1"><div class="kpi-label">Total WOs</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-sub">Work orders tracked</div></div>
+      <div class="kpi k2"><div class="kpi-label">In Progress</div><div class="kpi-val" id="kpi-inprog">—</div><div class="kpi-sub">Active production</div></div>
+      <div class="kpi k3"><div class="kpi-label">Completed</div><div class="kpi-val" id="kpi-comp">—</div><div class="kpi-sub">Fully done</div></div>
+      <div class="kpi k4"><div class="kpi-label">On Hold</div><div class="kpi-val" id="kpi-hold">—</div><div class="kpi-sub">Blocked orders</div></div>
+      <div class="kpi k5"><div class="kpi-label">Pending</div><div class="kpi-val" id="kpi-pend">—</div><div class="kpi-sub">Not yet started</div></div>
+      <div class="kpi k6"><div class="kpi-label">Avg Progress</div><div class="kpi-val" id="kpi-avg">—</div><div class="kpi-sub">Overall completion %</div></div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row2">
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Stage pipeline
+        </div>
+        <div id="prod-bars"></div>
+        <div style="position:relative;width:100%;height:150px;margin-top:.8rem"><canvas id="prodChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Status breakdown
+        </div>
+        <div id="status-bars"></div>
+        <div style="position:relative;width:100%;height:160px;margin-top:.8rem"><canvas id="statusChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Journey tracker -->
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Work Order Journey Tracker
+      </div>
+
+      <!-- Tabs + filters -->
+      <div class="tabs-wrap">
+        <div id="tab-bar" class="tabs">
+          <!-- dynamically built -->
+        </div>
+        <div class="filter-bar">
+          <div class="srch-wrap">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="jSearch" placeholder="Search WO# or item…" oninput="renderJourney()">
+          </div>
+          <select class="fsel" id="statusFilter" onchange="renderJourney()">
+            <option value="">All statuses</option>
+            <option>Completed</option>
+            <option>In Progress</option>
+            <option>Pending</option>
+            <option>Hold</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="journeyList"></div>
+    </div>
+
+    <!-- Table view -->
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M9 3h6v4"/><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M3 9h18v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/></svg>
+        Table View
+        <span id="row-count" style="font-size:10.5px;color:var(--tx3);font-weight:500;margin-left:4px;font-family:var(--fm)"></span>
+      </div>
+      <div class="twrap">
+        <table id="data-table">
+          <thead id="tHead"></thead>
+          <tbody id="tBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sheet info footer -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
+      <div class="sheet-chip">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Sheet: 1SssQiaJb_Ij4CPlunlAFjd_SGncaDAKN88PVmRFo-Qw
+      </div>
+      <div style="font-size:11px;color:var(--tx3);font-family:var(--fm)" id="auto-refresh-label">Auto-refresh every 5 min</div>
+    </div>
+
+    <div class="footer" id="footer-ts">—</div>
+  </div>
+</div>
+
+<!-- ADD MODAL -->
+<div class="modal-overlay" id="add-modal" onclick="if(event.target===this)closeAddModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Work Order
+      </div>
+      <button class="modal-close" onclick="closeAddModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="fg full">
+          <label>Sheet / Tab</label>
+          <select class="fs" id="mSheet" onchange="renderModalFields()"></select>
+        </div>
+        <div class="fg">
+          <label>Work Order No. *</label>
+          <input class="fi" id="mWo" placeholder="e.g. WO-006" type="text">
+        </div>
+        <div class="fg">
+          <label>Item / Description</label>
+          <input class="fi" id="mItem" placeholder="Item name" type="text">
+        </div>
+        <div class="fg">
+          <label>Date</label>
+          <input class="fi" id="mDate" type="date">
+        </div>
+        <div class="fg full" id="mFields"></div>
+      </div>
+      <div style="margin-top:.75rem;font-size:11.5px;color:var(--tx3);background:var(--amber-lt);border:1px solid rgba(138,82,0,.2);border-radius:6px;padding:.55rem .85rem">
+        ℹ️ Rows added here update the in-memory view. To persist to Google Sheets, use the
+        <a href="https://docs.google.com/spreadsheets/d/1SssQiaJb_Ij4CPlunlAFjd_SGncaDAKN88PVmRFo-Qw/edit" target="_blank" style="color:var(--green);font-weight:700">Open Sheet</a>
+        link or set up a Google Apps Script webhook.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="cancel-btn" onclick="closeAddModal()">Cancel</button>
+      <button class="submit-btn" onclick="saveWO()">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Save Work Order
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════
+const SHEET_ID = '1SssQiaJb_Ij4CPlunlAFjd_SGncaDAKN88PVmRFo-Qw';
+
+// Tab configuration — edit to match your exact sheet tab names
+// Each entry: { key, label, columns (display), keys (sheet column headers) }
+// The first key is always the WO identifier column
+// The remaining keys are the stage/status columns
+const TABS_CONFIG = [
+  {
+    key: 'casting',
+    label: 'Casting',
+    tabName: 'Casting',       // exact Google Sheet tab name
+    woCol: 'wo',
+    itemCol: 'item',
+    dateCol: 'date',
+    stageKeys: ['patternmaking','moulding','melting','casting','fettling','heat_treatment','machining','qc','dispatch'],
+    stageLabels: ['Pattern Making','Moulding','Melting','Casting','Fettling','Heat Treatment','Machining','QC','Dispatch']
+  },
+  {
+    key: 'fabrication',
+    label: 'Fabrication',
+    tabName: 'Fabrication',
+    woCol: 'wo',
+    itemCol: 'item',
+    dateCol: 'date',
+    stageKeys: ['cutting','forming','welding','grinding','painting','assembly','qc','dispatch'],
+    stageLabels: ['Cutting','Forming','Welding','Grinding','Painting','Assembly','QC','Dispatch']
+  }
+];
+
+// Status values used in stage cells
+const STS = ['','Completed','In Progress','Pending','Hold','Prepared','created'];
+
+// ══════════════════════════════════════════════
+//  DATA STORE
+// ══════════════════════════════════════════════
+let SHEETS = {};   // { key: { rows: [], cfg: tabCfg } }
+let activeTab = TABS_CONFIG[0].key;
+let chartProd = null, chartStatus = null;
+let sortCol = null, sortAsc = true;
+
+// ══════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+function set(id, html){ const el=$(id); if(el) el.innerHTML=html; }
+function show(id){ const el=$(id); if(el){ el.style.display=''; el.classList.remove('hidden'); } }
+function hide(id){ const el=$(id); if(el) el.classList.add('hidden'); }
+function setStatus(type, msg){
+  const bar = $('status-bar');
+  bar.className = `show ${type}`;
+  bar.textContent = msg;
+  if(type==='success') setTimeout(()=>{ bar.className=''; bar.textContent=''; }, 4000);
+}
+
+// ══════════════════════════════════════════════
+//  GOOGLE SHEETS — CSV fetch
+// ══════════════════════════════════════════════
+function csvUrl(tabName){
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`;
+}
+
+function parseCSV(text){
+  const lines=[]; let cur='',inQ=false,row=[];
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(c==='"'){ if(inQ&&text[i+1]==='"'){cur+='"';i++;}else inQ=!inQ; }
+    else if(c===','&&!inQ){row.push(cur.trim());cur='';}
+    else if((c==='\n'||c==='\r')&&!inQ){
+      if(c==='\r'&&text[i+1]==='\n')i++;
+      row.push(cur.trim());cur='';lines.push(row);row=[];
+    }else cur+=c;
+  }
+  if(cur||row.length){row.push(cur.trim());lines.push(row);}
+  if(lines.length<2)return[];
+  const headers=lines[0].map(h=>h.replace(/^"|"$/g,'').trim());
+  return lines.slice(1).filter(r=>r.some(c=>c!=='')).map(r=>{
+    const obj={};
+    headers.forEach((h,i)=>{obj[h]=(r[i]||'').replace(/^"|"$/g,'').trim()||null;});
+    return obj;
+  });
+}
+
+// Map parsed CSV rows to our internal schema
+function mapRows(parsed, cfg){
+  // Try to auto-detect column names by matching cfg keys to CSV headers
+  if(!parsed.length) return [];
+  const headers = Object.keys(parsed[0]);
+  // Smart header mapping: find best match for each key
+  function findCol(keys, candidates){
+    for(const c of candidates){
+      const found = headers.find(h=>h.toLowerCase().includes(c.toLowerCase()));
+      if(found) return found;
+    }
+    return null;
+  }
+  const woH    = findCol([cfg.woCol],['work order','wo no','wo#','wono','work_order','workorder','wo']) || headers[0];
+  const itemH  = findCol([cfg.itemCol],['item','description','desc','name','product']) || null;
+  const dateH  = findCol([cfg.dateCol],['date','dt']) || null;
+
+  return parsed.map(r=>{
+    const row = { wo: r[woH]||'', item: itemH?r[itemH]:'', date: dateH?r[dateH]:'' };
+    // Map stage keys to CSV headers
+    cfg.stageKeys.forEach((sk,i)=>{
+      const lbl = cfg.stageLabels[i];
+      const colH = headers.find(h=>h.toLowerCase()===lbl.toLowerCase())
+                || headers.find(h=>h.toLowerCase().includes(sk.toLowerCase()))
+                || null;
+      row[sk] = colH ? (r[colH]||'') : '';
+    });
+    return row;
+  }).filter(r=>r.wo);
+}
+
+// Demo data fallback
+function demoRows(cfg){
+  const statuses=['Completed','In Progress','Pending','Hold',''];
+  const items=['Pump Body','Valve Cover','Bracket Set','Gear Housing','Coupling Plate','Flange Unit'];
+  return Array.from({length:6},(_,i)=>{
+    const row={wo:`WO-00${i+1}`,item:items[i]||'Item',date:`${10+i}/06/2026`};
+    const done=Math.floor(Math.random()*(cfg.stageKeys.length+1));
+    cfg.stageKeys.forEach((k,j)=>{
+      row[k]=j<done?'Completed':j===done?statuses[Math.floor(Math.random()*3)+1]:statuses[4];
+    });
+    return row;
+  });
+}
+
+// ══════════════════════════════════════════════
+//  LOAD ALL
+// ══════════════════════════════════════════════
+async function loadAll(){
+  $('loading-screen').classList.remove('hidden');
+  $('loading-screen').style.display='flex';
+  $('loading-screen').style.opacity='1';
+  $('dashboard').classList.remove('visible');
+  $('dashboard').style.display='none';
+
+  let usedDemo=false;
+  for(const cfg of TABS_CONFIG){
+    try{
+      const resp = await fetch(csvUrl(cfg.tabName));
+      if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const text = await resp.text();
+      const parsed = parseCSV(text);
+      if(!parsed.length) throw new Error('Empty sheet');
+      SHEETS[cfg.key] = { rows: mapRows(parsed,cfg), cfg };
+    }catch(e){
+      console.warn(`Tab "${cfg.tabName}" failed, using demo:`,e.message);
+      SHEETS[cfg.key] = { rows: demoRows(cfg), cfg };
+      usedDemo=true;
+    }
+  }
+
+  $('loading-screen').style.opacity='0';
+  setTimeout(()=>{ $('loading-screen').style.display='none'; },350);
+  $('dashboard').style.display='block';
+  $('dashboard').classList.add('visible');
+
+  if(usedDemo){
+    setStatus('loading','⚠️ Sheet tabs not found — showing demo data. Ensure your sheet is published and tab names match: '+TABS_CONFIG.map(c=>c.tabName).join(', '));
+  }else{
+    setStatus('success','✓ Live data loaded from Google Sheets');
+  }
+
+  buildTabs();
+  renderAll();
+  scheduleRefresh();
+}
+
+let _refreshTimer = null;
+function scheduleRefresh(){
+  clearTimeout(_refreshTimer);
+  _refreshTimer = setTimeout(async ()=>{
+    // Silent background refresh
+    for(const cfg of TABS_CONFIG){
+      try{
+        const resp = await fetch(csvUrl(cfg.tabName));
+        if(!resp.ok) return;
+        const parsed = parseCSV(await resp.text());
+        if(parsed.length) SHEETS[cfg.key].rows = mapRows(parsed,cfg);
+      }catch(e){}
+    }
+    renderAll();
+    scheduleRefresh();
+  }, 5*60*1000);
+}
+
+// ══════════════════════════════════════════════
+//  BUILD TABS
+// ══════════════════════════════════════════════
+function buildTabs(){
+  const bar = $('tab-bar');
+  bar.innerHTML = TABS_CONFIG.map((t,i)=>`
+    <button class="tab${activeTab===t.key?' active':''}" onclick="switchTab('${t.key}',this)">
+      ${t.label}
+      <span style="font-size:10px;font-family:var(--fm);color:inherit;opacity:.7">${(SHEETS[t.key]?.rows||[]).length}</span>
+    </button>`).join('');
+  // also populate modal sheet selector
+  const mSheet = $('mSheet');
+  if(mSheet) mSheet.innerHTML = TABS_CONFIG.map(t=>`<option value="${t.key}">${t.label}</option>`).join('');
+}
+
+function switchTab(key, btn){
+  activeTab = key;
+  document.querySelectorAll('#tab-bar .tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  renderJourney();
+  renderTable();
+}
+
+// ══════════════════════════════════════════════
+//  RENDER ALL
+// ══════════════════════════════════════════════
+function renderAll(){
+  renderKPIs();
+  renderCharts();
+  renderJourney();
+  renderTable();
+  const now = new Date().toLocaleString('en-GB');
+  set('refresh-info', `Refreshed ${now}`);
+  set('footer-ts', `Google Sheets · Sheet ID: ${SHEET_ID} · Last refreshed: ${now} · Auto-refresh every 5 min`);
+}
+
+// ══════════════════════════════════════════════
+//  KPIs (aggregate all tabs)
+// ══════════════════════════════════════════════
+function overallStatus(row, cfg){
+  const vals = cfg.stageKeys.map(k=>row[k]||'');
+  if(vals.every(v=>v==='Completed')) return 'Completed';
+  if(vals.some(v=>v==='Hold')) return 'Hold';
+  if(vals.some(v=>['In Progress','Prepared','created'].includes(v))) return 'In Progress';
+  if(vals.every(v=>!v||v==='Pending')) return 'Pending';
+  return 'Pending';
+}
+function calcPct(row, cfg){
+  const total=cfg.stageKeys.length;
+  if(!total) return 0;
+  return Math.round(cfg.stageKeys.filter(k=>row[k]==='Completed').length/total*100);
+}
+function renderKPIs(){
+  let total=0,inP=0,comp=0,hold=0,pend=0,pctSum=0,pctCount=0;
+  for(const tab of Object.values(SHEETS)){
+    tab.rows.forEach(r=>{
+      total++;
+      const st=overallStatus(r,tab.cfg);
+      if(st==='Completed')comp++;
+      else if(st==='In Progress')inP++;
+      else if(st==='Hold')hold++;
+      else pend++;
+      const p=calcPct(r,tab.cfg);
+      pctSum+=p;pctCount++;
+    });
+  }
+  const avg=pctCount?Math.round(pctSum/pctCount):0;
+  set('kpi-total',total);set('kpi-inprog',inP);set('kpi-comp',comp);
+  set('kpi-hold',hold);set('kpi-pend',pend);set('kpi-avg',avg+'%');
+}
+
+// ══════════════════════════════════════════════
+//  CHARTS
+// ══════════════════════════════════════════════
+function renderCharts(){
+  const sh = SHEETS[activeTab];
+  if(!sh) return;
+
+  // Stage pipeline bars
+  const stageCounts = {};
+  sh.cfg.stageKeys.forEach((k,i)=>{
+    const lbl=sh.cfg.stageLabels[i];
+    stageCounts[lbl]=sh.rows.filter(r=>r[k]==='Completed').length;
+  });
+  const total=sh.rows.length||1;
+  const COLORS=['#1b7a3e','#1558a0','#4a38a8','#c0392b','#8a5200','#0e6670','#34d399','#60a5fa','#c4b5fd'];
+  set('prod-bars',Object.entries(stageCounts).map(([lbl,n],i)=>{
+    const pct=Math.round(n/total*100);
+    const col=COLORS[i%COLORS.length];
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0"></div>
+      <span style="font-size:12px;color:var(--tx);width:110px;flex-shrink:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lbl}</span>
+      <div style="flex:1;height:5px;background:var(--bg3);border-radius:4px;overflow:hidden"><div style="width:${pct}%;height:100%;border-radius:4px;background:${col};transition:width .8s"></div></div>
+      <span style="font-size:11px;font-weight:700;width:24px;text-align:right;font-family:var(--fm);color:${col}">${n}</span>
+    </div>`;
+  }).join('')||'<div class="empty-state">No data</div>');
+
+  // Doughnut chart
+  if(chartProd){chartProd.destroy();chartProd=null;}
+  const entries=Object.entries(stageCounts).filter(([,n])=>n>0);
+  if(entries.length){
+    chartProd=new Chart($('prodChart'),{
+      type:'doughnut',
+      data:{labels:entries.map(([s])=>s),datasets:[{data:entries.map(([,n])=>n),backgroundColor:entries.map((_,i)=>COLORS[i%COLORS.length]),borderWidth:2,borderColor:'#ffffff'}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:true,position:'bottom',labels:{color:'#4a5c50',font:{size:10,family:'Inter'},padding:7,boxWidth:9,boxHeight:9}},tooltip:{callbacks:{label:c=>` ${c.label}: ${c.raw}`}}}}
+    });
+  }
+
+  // Status bars
+  const stCounts={};
+  sh.rows.forEach(r=>{const s=overallStatus(r,sh.cfg);stCounts[s]=(stCounts[s]||0)+1;});
+  const stEntries=Object.entries(stCounts);
+  const stMax=Math.max(...stEntries.map(([,n])=>n),1);
+  const stColors=['#1b7a3e','#1558a0','#8a5200','#c0392b','#4a38a8'];
+  set('status-bars',stEntries.map(([s,n],i)=>{
+    const col=stColors[i%stColors.length];
+    const pct=Math.round(n/stMax*100);
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0"></div>
+      <span style="font-size:12px;color:var(--tx);width:100px;flex-shrink:0;font-weight:600">${s}</span>
+      <div style="flex:1;height:5px;background:var(--bg3);border-radius:4px;overflow:hidden"><div style="width:${pct}%;height:100%;border-radius:4px;background:${col};transition:width .8s"></div></div>
+      <span style="font-size:11px;font-weight:700;width:20px;text-align:right;font-family:var(--fm);color:${col}">${n}</span>
+    </div>`;
+  }).join('')||'<div class="empty-state">No data</div>');
+
+  if(chartStatus){chartStatus.destroy();chartStatus=null;}
+  if(stEntries.length){
+    chartStatus=new Chart($('statusChart'),{
+      type:'bar',
+      data:{labels:stEntries.map(([s])=>s),datasets:[{data:stEntries.map(([,n])=>n),backgroundColor:stEntries.map((_,i)=>stColors[i%stColors.length]+'cc'),borderColor:stEntries.map((_,i)=>stColors[i%stColors.length]),borderWidth:1.5,borderRadius:5,barThickness:22}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+' orders'}}},scales:{x:{beginAtZero:true,ticks:{color:'#8fa695',font:{size:10}},grid:{color:'rgba(0,0,0,.05)'}},y:{ticks:{color:'#4a5c50',font:{size:10,weight:'600',family:'Inter'}},grid:{display:false},border:{display:false}}}}
+    });
+  }
+}
+
+// ══════════════════════════════════════════════
+//  JOURNEY TRACKER
+// ══════════════════════════════════════════════
+function stageClass(s){
+  if(s==='Completed')return 's-done';
+  if(['In Progress','Prepared','created'].includes(s))return 's-active';
+  if(s==='Hold')return 's-hold';
+  return 's-pending';
+}
+function nodeIcon(s){
+  if(s==='Completed')return '✓';
+  if(['In Progress','Prepared','created'].includes(s))return '●';
+  if(s==='Hold')return '⏸';
+  return '';
+}
+function badgeCls(label){
+  if(label==='Completed')return 'badge-completed';
+  if(label==='In Progress')return 'badge-progress';
+  if(label==='Pending')return 'badge-pending';
+  if(label==='Hold')return 'badge-hold';
+  return 'badge-empty';
+}
+function renderJourney(){
+  const sh=SHEETS[activeTab];
+  if(!sh){set('journeyList','<div class="empty-state">No data</div>');return;}
+  const q=(document.getElementById('jSearch')?.value||'').toLowerCase();
+  const sf=(document.getElementById('statusFilter')?.value||'');
+  let rows=sh.rows.filter(r=>{
+    const match=!q||r.wo.toLowerCase().includes(q)||(r.item||'').toLowerCase().includes(q);
+    const stMatch=!sf||overallStatus(r,sh.cfg)===sf;
+    return match&&stMatch;
+  });
+  if(!rows.length){set('journeyList','<div class="empty-state">No work orders found.</div>');return;}
+  set('journeyList',rows.map(r=>{
+    const pct=calcPct(r,sh.cfg);
+    const st=overallStatus(r,sh.cfg);
+    const dateStr=r.date?`<span class="jdate"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${r.date}</span>`:'';
+    const steps=sh.cfg.stageKeys.map((k,i)=>{
+      const s=r[k]||'';
+      const sc=stageClass(s);
+      const prevSc=i>0?stageClass(r[sh.cfg.stageKeys[i-1]]||''):'';
+      return `<div class="pstep ${prevSc}">
+        <div class="pnode ${sc}">${nodeIcon(s)}</div>
+        <div class="plbl ${sc}">${sh.cfg.stageLabels[i].replace('/','/\u200b')}</div>
+      </div>`;
+    }).join('');
+    return `<div class="jcard">
+      <div class="jcard-hd">
+        <span class="jwo">${r.wo}</span>
+        ${r.item?`<span class="jitem">${r.item}</span>`:''}
+        <span class="badge ${badgeCls(st)}">${st}</span>
+        ${dateStr}
+        <div class="jprog"><span>PROGRESS</span><span class="jprog-val">${pct}%</span></div>
+      </div>
+      <div class="jpipeline"><div class="ptrack">${steps}</div></div>
+    </div>`;
+  }).join(''));
+}
+
+// ══════════════════════════════════════════════
+//  TABLE VIEW
+// ══════════════════════════════════════════════
+function renderTable(){
+  const sh=SHEETS[activeTab];
+  if(!sh){set('tHead','');set('tBody','');return;}
+  // Build header
+  const cols=['WO #','Item','Date',...sh.cfg.stageLabels,'Overall','Progress'];
+  set('tHead',`<tr>${cols.map((c,i)=>`<th onclick="sortTable(${i})">${c}<span class="sort-icon">↕</span></th>`).join('')}</tr>`);
+  let rows=[...sh.rows];
+  if(sortCol!==null){
+    rows.sort((a,b)=>{
+      let va='',vb='';
+      const allKeys=['wo','item','date',...sh.cfg.stageKeys,'_overall','_pct'];
+      const k=allKeys[sortCol];
+      if(k==='_overall'){va=overallStatus(a,sh.cfg);vb=overallStatus(b,sh.cfg);}
+      else if(k==='_pct'){va=calcPct(a,sh.cfg);vb=calcPct(b,sh.cfg);return sortAsc?va-vb:vb-va;}
+      else{va=a[k]||'';vb=b[k]||'';}
+      return sortAsc?va.localeCompare(vb):vb.localeCompare(va);
+    });
+  }
+  set('row-count',`${rows.length} records`);
+  set('tBody',rows.map(r=>{
+    const pct=calcPct(r,sh.cfg);
+    const pBarCol=pct===100?'#1b7a3e':pct>60?'#1558a0':pct>30?'#d97706':'#aaa';
+    const stCls={'Completed':'badge-completed','In Progress':'badge-progress','Pending':'badge-pending','Hold':'badge-hold'};
+    const stageCells=sh.cfg.stageKeys.map(k=>{
+      const v=r[k]||'';
+      const cls=v?stCls[v]||'badge-empty':'badge-empty';
+      return `<td><span class="badge ${cls}">${v||'—'}</span></td>`;
+    }).join('');
+    const ov=overallStatus(r,sh.cfg);
+    return `<tr>
+      <td><span class="wo-id">${r.wo}</span></td>
+      <td>${r.item||'—'}</td>
+      <td style="font-family:var(--fm);font-size:11.5px">${r.date||'—'}</td>
+      ${stageCells}
+      <td><span class="badge ${badgeCls(ov)}">${ov}</span></td>
+      <td><div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="width:${pct}%;background:${pBarCol}"></div></div><span class="pbar-lbl">${pct}%</span></div></td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="${cols.length}" class="empty-state">No records</td></tr>`);
+}
+function sortTable(i){
+  if(sortCol===i)sortAsc=!sortAsc;else{sortCol=i;sortAsc=true;}
+  renderTable();
+}
+
+// ══════════════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════════════
+function openAddModal(){
+  $('mSheet').value=activeTab;
+  renderModalFields();
+  $('add-modal').classList.add('open');
+}
+function closeAddModal(){
+  $('add-modal').classList.remove('open');
+  $('mWo').value='';$('mItem').value='';$('mDate').value='';
+}
+function renderModalFields(){
+  const key=$('mSheet').value;
+  const cfg=TABS_CONFIG.find(t=>t.key===key);
+  if(!cfg)return;
+  set('mFields',`<div style="grid-column:1/-1;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);margin-bottom:2px">Stage Statuses</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px">${cfg.stageKeys.map((k,i)=>`
+    <div class="fg">
+      <label>${cfg.stageLabels[i]}</label>
+      <select class="fs" id="sf_${k}">${STS.map(o=>`<option value="${o}">${o||'— not set —'}</option>`).join('')}</select>
+    </div>`).join('')}</div>`);
+}
+function saveWO(){
+  const wo=$('mWo').value.trim();
+  if(!wo){$('mWo').focus();return;}
+  const key=$('mSheet').value;
+  const cfg=TABS_CONFIG.find(t=>t.key===key);
+  const nr={wo,item:$('mItem').value.trim(),date:$('mDate').value};
+  cfg.stageKeys.forEach(k=>{nr[k]=$(`sf_${k}`)?.value||'';});
+  SHEETS[key].rows.push(nr);
+  buildTabs();
+  renderAll();
+  setStatus('success','✓ Work order added locally');
+  closeAddModal();
+}
+
+// ══════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════
+window.addEventListener('load', loadAll);
+</script>
+</body>
+</html>
