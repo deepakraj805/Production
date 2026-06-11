@@ -216,6 +216,42 @@ tbody tr:hover td{background:var(--bg3)}
 .pbar-lbl{font-size:11px;color:var(--tx3);min-width:30px;text-align:right;font-weight:700;font-family:var(--fm)}
 .sort-icon{opacity:.45;font-size:10px;margin-left:2px}
 
+/* ── Card action buttons (edit/delete on journey cards) ── */
+.jcard-actions{display:flex;gap:5px;flex-shrink:0;margin-left:auto}
+.card-action-btn{width:28px;height:28px;border-radius:6px;border:1px solid var(--bd2);background:transparent;color:var(--tx3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+.card-action-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.card-action-btn.edit:hover{background:var(--blue-lt);border-color:#bfdbfe;color:var(--blue)}
+.card-action-btn.delete:hover{background:var(--red-lt);border-color:rgba(184,50,50,.3);color:var(--red)}
+
+/* ── Table action buttons ── */
+.td-actions{display:flex;gap:5px;align-items:center}
+.tbl-act-btn{width:26px;height:26px;border-radius:5px;border:1.5px solid;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;background:none;flex-shrink:0}
+.tbl-act-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tbl-act-btn.edit{border-color:#bfdbfe;color:var(--blue)}.tbl-act-btn.edit:hover{background:var(--blue-lt)}
+.tbl-act-btn.delete{border-color:rgba(184,50,50,.35);color:var(--red)}.tbl-act-btn.delete:hover{background:var(--red-lt)}
+
+/* ── Confirm overlay ── */
+.confirm-overlay{position:fixed;inset:0;background:rgba(10,20,30,.5);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;padding:1.5rem;opacity:0;pointer-events:none;transition:opacity .22s}
+.confirm-overlay.open{opacity:1;pointer-events:all}
+.confirm-box{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--rl);padding:1.5rem;width:min(360px,100%);box-shadow:var(--shadow-lg)}
+.confirm-box h3{font-size:14px;font-weight:800;color:var(--tx);margin-bottom:8px}
+.confirm-box p{font-size:12.5px;color:var(--tx2);margin-bottom:18px;line-height:1.55}
+.confirm-actions{display:flex;gap:10px;justify-content:flex-end}
+.btn-cancel-sm{padding:7px 16px;border-radius:var(--r);border:1px solid var(--bd2);background:transparent;color:var(--tx2);font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--f);transition:background .15s}
+.btn-cancel-sm:hover{background:var(--bg3)}
+.btn-danger{padding:7px 16px;border-radius:var(--r);border:none;background:var(--red);font-family:var(--f);font-size:12.5px;font-weight:700;color:#fff;cursor:pointer;transition:background .15s}
+.btn-danger:hover{background:#9b2626}
+
+/* ── Toast ── */
+.toast-stack{position:fixed;bottom:22px;right:22px;z-index:600;display:flex;flex-direction:column;gap:7px;align-items:flex-end}
+.toast{background:var(--forest);color:var(--sand);padding:11px 16px;border-radius:var(--rl);font-size:12.5px;font-weight:600;box-shadow:var(--shadow-lg);opacity:0;transform:translateX(14px);transition:all .28s;pointer-events:none;max-width:300px}
+.toast.show{opacity:1;transform:translateX(0)}
+.toast.error{background:var(--red)}
+.toast.success{background:#1b7a3e}
+
+/* ── Modal title edit mode ── */
+.modal-title.edit-mode svg{stroke:var(--amber)}
+
 /* ── Modal ── */
 .modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(10,20,30,.45);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1.5rem;opacity:0;pointer-events:none;transition:opacity .22s}
 .modal-overlay.open{opacity:1;pointer-events:all}
@@ -362,11 +398,26 @@ tbody tr:hover td{background:var(--bg3)}
   </div>
 </div>
 
-<!-- ADD MODAL -->
+<!-- CONFIRM DELETE -->
+<div class="confirm-overlay" id="confirm-overlay" onclick="if(event.target===this)closeConfirm()">
+  <div class="confirm-box">
+    <h3>Delete Work Order</h3>
+    <p id="confirm-msg">Are you sure?</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel-sm" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-danger" id="confirm-delete-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST STACK -->
+<div class="toast-stack" id="toastStack"></div>
+
+<!-- ADD / EDIT MODAL -->
 <div class="modal-overlay" id="add-modal" onclick="if(event.target===this)closeAddModal()">
   <div class="modal-box">
     <div class="modal-head">
-      <div class="modal-title">
+      <div class="modal-title" id="modal-title">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Work Order
       </div>
@@ -797,6 +848,10 @@ function renderJourney(){
         <span class="badge ${badgeCls(st)}">${st}</span>
         ${dateStr}
         <div class="jprog"><span>PROGRESS</span><span class="jprog-val">${pct}%</span></div>
+        <div class="jcard-actions">
+          <button class="card-action-btn edit" title="Edit" onclick="openEditModal('${encodeURIComponent(r.wo)}','${activeTab}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          <button class="card-action-btn delete" title="Delete" onclick="confirmDelete('${encodeURIComponent(r.wo)}','${activeTab}')"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+        </div>
       </div>
       <div class="jpipeline"><div class="ptrack">${steps}</div></div>
     </div>`;
@@ -810,8 +865,8 @@ function renderTable(){
   const sh=SHEETS[activeTab];
   if(!sh){set('tHead','');set('tBody','');return;}
   // Build header
-  const cols=['WO #','Item','Date',...sh.cfg.stageLabels,'Overall','Progress'];
-  set('tHead',`<tr>${cols.map((c,i)=>`<th onclick="sortTable(${i})">${c}<span class="sort-icon">↕</span></th>`).join('')}</tr>`);
+  const cols=['WO #','Item','Date',...sh.cfg.stageLabels,'Overall','Progress','Actions'];
+  set('tHead',`<tr>${cols.map((c,i)=>i<cols.length-1?`<th onclick="sortTable(${i})">${c}<span class="sort-icon">↕</span></th>`:`<th>${c}</th>`).join('')}</tr>`);
   let rows=[...sh.rows];
   if(sortCol!==null){
     rows.sort((a,b)=>{
@@ -842,6 +897,10 @@ function renderTable(){
       ${stageCells}
       <td><span class="badge ${badgeCls(ov)}">${ov}</span></td>
       <td><div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="width:${pct}%;background:${pBarCol}"></div></div><span class="pbar-lbl">${pct}%</span></div></td>
+      <td><div class="td-actions">
+        <button class="tbl-act-btn edit" title="Edit" onclick="openEditModal('${encodeURIComponent(r.wo)}','${activeTab}')"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="tbl-act-btn delete" title="Delete" onclick="confirmDelete('${encodeURIComponent(r.wo)}','${activeTab}')"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+      </div></td>
     </tr>`;
   }).join('')||`<tr><td colspan="${cols.length}" class="empty-state">No records</td></tr>`);
 }
@@ -851,18 +910,46 @@ function sortTable(i){
 }
 
 // ══════════════════════════════════════════════
-//  MODAL
+//  MODAL — ADD / EDIT
 // ══════════════════════════════════════════════
+let _editKey = null; // null = add mode, else WO key being edited
+
 function openAddModal(){
-  $('mSheet').value=activeTab;
+  _editKey = null;
+  $('mSheet').value = activeTab;
+  $('mSheet').disabled = false;
+  $('mWo').value = ''; $('mItem').value = ''; $('mDate').value = '';
+  const t = $('modal-title');
+  t.innerHTML = `<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Work Order`;
   renderModalFields();
   $('add-modal').classList.add('open');
 }
+
+function openEditModal(woEnc, tabKey){
+  const wo = decodeURIComponent(woEnc);
+  const sh = SHEETS[tabKey];
+  const r = sh?.rows.find(x => x.wo === wo);
+  if(!r){ showToast('Work order not found', 'error'); return; }
+  _editKey = { wo, tabKey };
+  $('mSheet').value = tabKey;
+  $('mSheet').disabled = true;
+  $('mWo').value = r.wo;
+  $('mItem').value = r.item || '';
+  $('mDate').value = r.date || '';
+  const t = $('modal-title');
+  t.innerHTML = `<svg viewBox="0 0 24 24" style="stroke:var(--amber)"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit Work Order`;
+  renderModalFields(r);
+  $('add-modal').classList.add('open');
+}
+
 function closeAddModal(){
   $('add-modal').classList.remove('open');
-  $('mWo').value='';$('mItem').value='';$('mDate').value='';
+  $('mSheet').disabled = false;
+  $('mWo').value=''; $('mItem').value=''; $('mDate').value='';
+  _editKey = null;
 }
-function renderModalFields(){
+
+function renderModalFields(existing){
   const key=$('mSheet').value;
   const cfg=TABS_CONFIG.find(t=>t.key===key);
   if(!cfg)return;
@@ -870,9 +957,10 @@ function renderModalFields(){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px">${cfg.stageKeys.map((k,i)=>`
     <div class="fg">
       <label>${cfg.stageLabels[i]}</label>
-      <select class="fs" id="sf_${k}">${SHEET_STATUS_VALUES.map(o=>`<option value="${o}">${o||'— not set —'}</option>`).join('')}</select>
+      <select class="fs" id="sf_${k}">${SHEET_STATUS_VALUES.map(o=>`<option value="${o}"${existing&&existing[k]===o?' selected':''}>${o||'— not set —'}</option>`).join('')}</select>
     </div>`).join('')}</div>`);
 }
+
 function saveWO(){
   const wo=$('mWo').value.trim();
   if(!wo){$('mWo').focus();return;}
@@ -880,11 +968,56 @@ function saveWO(){
   const cfg=TABS_CONFIG.find(t=>t.key===key);
   const nr={wo,item:$('mItem').value.trim(),date:$('mDate').value};
   cfg.stageKeys.forEach(k=>{nr[k]=$(`sf_${k}`)?.value||'';});
-  SHEETS[key].rows.push(nr);
+
+  if(_editKey){
+    // EDIT existing
+    const idx = SHEETS[_editKey.tabKey].rows.findIndex(r=>r.wo===_editKey.wo);
+    if(idx!==-1) SHEETS[_editKey.tabKey].rows[idx] = nr;
+    setStatus('success','✓ Work order updated');
+    showToast('Work order updated ✓','success');
+  } else {
+    // ADD new
+    SHEETS[key].rows.push(nr);
+    setStatus('success','✓ Work order added locally');
+    showToast('Work order added ✓','success');
+  }
   buildTabs();
   renderAll();
-  setStatus('success','✓ Work order added locally');
   closeAddModal();
+}
+
+// ══════════════════════════════════════════════
+//  DELETE
+// ══════════════════════════════════════════════
+function confirmDelete(woEnc, tabKey){
+  const wo = decodeURIComponent(woEnc);
+  $('confirm-msg').textContent = `Delete work order "${wo}"? This cannot be undone.`;
+  $('confirm-overlay').classList.add('open');
+  $('confirm-delete-btn').onclick = () => {
+    SHEETS[tabKey].rows = SHEETS[tabKey].rows.filter(r=>r.wo!==wo);
+    buildTabs();
+    renderAll();
+    setStatus('success','✓ Work order deleted');
+    showToast('Work order deleted','success');
+    closeConfirm();
+  };
+}
+
+function closeConfirm(){
+  $('confirm-overlay').classList.remove('open');
+}
+
+// ══════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════
+function showToast(msg, type=''){
+  const stack = $('toastStack');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type?' '+type:'');
+  t.textContent = msg;
+  stack.appendChild(t);
+  requestAnimationFrame(()=>t.classList.add('show'));
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),400);},3000);
 }
 
 // ══════════════════════════════════════════════
