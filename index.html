@@ -164,6 +164,10 @@ body{
 
 /* ── Journey cards ── */
 .jcard{border:1px solid var(--bd);border-radius:var(--rl);margin-bottom:10px;overflow:hidden;background:var(--bg3);transition:box-shadow .15s}
+#journey-scroll::-webkit-scrollbar{width:5px}
+#journey-scroll::-webkit-scrollbar-track{background:var(--bg3);border-radius:4px}
+#journey-scroll::-webkit-scrollbar-thumb{background:var(--sand-dk);border-radius:4px}
+#journey-scroll::-webkit-scrollbar-thumb:hover{background:var(--forest)}
 .jcard:hover{box-shadow:var(--shadow-md)}
 .jcard-hd{display:flex;align-items:center;gap:10px;padding:10px 14px;flex-wrap:wrap;border-bottom:1px solid var(--bd);background:var(--bg2)}
 .jwo{font-size:12.5px;font-weight:700;color:var(--accent);font-family:var(--fm);letter-spacing:.02em}
@@ -201,7 +205,11 @@ body{
 .plbl.s-hold{color:var(--red);font-weight:700}
 
 /* ── Table ── */
-.twrap{overflow-x:auto;max-height:clamp(300px,40vh,520px);overflow-y:auto}
+.twrap{overflow-x:auto;max-height:418px;overflow-y:auto}
+.twrap::-webkit-scrollbar{width:5px;height:5px}
+.twrap::-webkit-scrollbar-track{background:var(--bg3);border-radius:4px}
+.twrap::-webkit-scrollbar-thumb{background:var(--sand-dk);border-radius:4px}
+.twrap::-webkit-scrollbar-thumb:hover{background:var(--forest)}
 .twrap thead th{position:sticky;top:0;z-index:2;background:var(--bg3);box-shadow:0 1px 0 var(--bd2)}
 table{width:100%;border-collapse:collapse;font-size:12.5px}
 th{text-align:left;padding:9px 12px;color:var(--tx3);font-weight:700;white-space:nowrap;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;cursor:pointer;user-select:none;transition:color .12s}
@@ -376,7 +384,9 @@ tbody tr:hover td{background:var(--bg3)}
         </div>
       </div>
 
-      <div id="journeyList"></div>
+      <div id="journey-scroll" style="max-height:580px;overflow-y:auto;overflow-x:hidden;padding-right:4px">
+        <div id="journeyList"></div>
+      </div>
     </div>
 
     <!-- Table view -->
@@ -469,22 +479,22 @@ const TABS_CONFIG = [
   {
     key: 'casting',
     label: 'Casting',
-    tabName: 'Casting',       // exact Google Sheet tab name
-    woCol: 'wo',
-    itemCol: 'item',
-    dateCol: 'date',
-    stageKeys: ['patternmaking','moulding','melting','casting','fettling','heat_treatment','machining','qc','dispatch'],
-    stageLabels: ['Pattern Making','Moulding','Melting','Casting','Fettling','Heat Treatment','Machining','QC','Dispatch']
+    tabName: 'Casting',
+    woCol: 'Work Order No',
+    itemCol: 'Item Description',
+    dateCol: 'Schedule date ',
+    stageKeys: ['shell_prep','material_pouring','blasting','qc_status','final_packing','packing_status','dispatch'],
+    stageLabels: ['Shell Preparation','Material Pouring','Blasting','QC Status','Final Packing List','Packing Status','Dispatch']
   },
   {
     key: 'fabrication',
     label: 'Fabrication',
     tabName: 'Fabrication',
-    woCol: 'wo',
-    itemCol: 'item',
-    dateCol: 'date',
-    stageKeys: ['cutting','forming','welding','grinding','painting','assembly','qc','dispatch'],
-    stageLabels: ['Cutting','Forming','Welding','Grinding','Painting','Assembly','QC','Dispatch']
+    woCol: 'Work Order No',
+    itemCol: 'Customer Name',
+    dateCol: 'Dispatch Date',
+    stageKeys: ['raw_material','bending','cutting','welding','hard_facing','qc_status','final_packing','packing_status','dispatch'],
+    stageLabels: ['Raw Material Purchase','Bending / Twisting','Cutting','Welding','Hard Facing','QC Status','Final Packing List','Packing Status','Dispatch']
   }
 ];
 
@@ -560,25 +570,20 @@ function mapRows(parsed, cfg){
   // Try to auto-detect column names by matching cfg keys to CSV headers
   if(!parsed.length) return [];
   const headers = Object.keys(parsed[0]);
-  // Smart header mapping: find best match for each key
-  function findCol(keys, candidates){
-    for(const c of candidates){
-      const found = headers.find(h=>h.toLowerCase().includes(c.toLowerCase()));
-      if(found) return found;
-    }
-    return null;
-  }
-  const woH    = findCol([cfg.woCol],['work order','wo no','wo#','wono','work_order','workorder','wo']) || headers[0];
-  const itemH  = findCol([cfg.itemCol],['item','description','desc','name','product']) || null;
-  const dateH  = findCol([cfg.dateCol],['date','dt']) || null;
+
+  // Direct match using cfg.woCol / itemCol / dateCol (exact Excel header names)
+  const woH   = headers.find(h=>h===cfg.woCol) || headers.find(h=>h.toLowerCase().includes('work order')) || headers[0];
+  const itemH = headers.find(h=>h===cfg.itemCol) || null;
+  const dateH = headers.find(h=>h===cfg.dateCol) || null;
 
   return parsed.map(r=>{
     const row = { wo: r[woH]||'', item: itemH?r[itemH]:'', date: dateH?r[dateH]:'' };
-    // Map stage keys to CSV headers
+    // Map each stage key to its exact stageLabel column header in the sheet
     cfg.stageKeys.forEach((sk,i)=>{
       const lbl = cfg.stageLabels[i];
-      const colH = headers.find(h=>h.toLowerCase()===lbl.toLowerCase())
-                || headers.find(h=>h.toLowerCase().includes(sk.toLowerCase()))
+      const colH = headers.find(h=>h===lbl)                                    // exact match
+                || headers.find(h=>h.toLowerCase()===lbl.toLowerCase())         // case-insensitive
+                || headers.find(h=>h.toLowerCase().includes(sk.replace(/_/g,' ').toLowerCase())) // fuzzy
                 || null;
       row[sk] = colH ? (r[colH]||'') : '';
     });
